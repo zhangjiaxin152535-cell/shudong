@@ -20,7 +20,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col">
+    <div className="h-full bg-gradient-to-b from-blue-50 to-white flex flex-col overflow-hidden">
       {/* 顶部栏 */}
       <header className="flex items-center justify-between px-6 py-4">
         <h1 className="text-2xl font-bold text-gray-800">首页</h1>
@@ -71,7 +71,7 @@ export default function HomePage() {
       )}
 
       {/* 主入口 */}
-      <main className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
+      <main className="flex-1 flex flex-col items-center justify-center gap-6 px-6 overflow-y-auto">
         <button
           onClick={() => handleNeedAuth('/real-person')}
           className="w-full max-w-sm py-6 bg-white rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 transition-all hover:-translate-y-1"

@@ -42,15 +42,15 @@ export default function NotificationsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-4 py-3 flex items-center gap-3">
+    <div className="h-full flex flex-col bg-gray-50">
+      <header className="bg-white border-b px-4 py-3 flex items-center gap-3 shrink-0">
         <button onClick={() => navigate('/')} className="p-1 hover:bg-gray-100 rounded">
           <ArrowLeft size={20} />
         </button>
         <h1 className="text-lg font-semibold">系统通知</h1>
       </header>
 
-      <div className="max-w-2xl mx-auto p-4">
+      <div className="flex-1 overflow-y-auto"><div className="max-w-2xl mx-auto p-4">
         {loading ? (
           <p className="text-center text-gray-500 py-8">加载中...</p>
         ) : notifications.length === 0 ? (
@@ -85,6 +85,6 @@ export default function NotificationsPage() {
           </div>
         )}
       </div>
-    </div>
+    </div></div>
   )
 }

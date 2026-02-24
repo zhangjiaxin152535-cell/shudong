@@ -21,15 +21,15 @@ export default function VipPage() {
   const [selected, setSelected] = useState('30day')
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-yellow-50 to-white">
-      <header className="bg-white/80 backdrop-blur border-b px-4 py-3 flex items-center gap-3">
+    <div className="h-full flex flex-col bg-gradient-to-b from-yellow-50 to-white">
+      <header className="bg-white/80 backdrop-blur border-b px-4 py-3 flex items-center gap-3 shrink-0">
         <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded">
           <ArrowLeft size={20} />
         </button>
         <h1 className="text-lg font-semibold">👑 会员充值</h1>
       </header>
 
-      <div className="max-w-lg mx-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto"><div className="max-w-lg mx-auto p-6 space-y-6">
         {/* VIP特权 */}
         <div className="bg-white rounded-2xl p-5 shadow-sm border">
           <h2 className="font-semibold text-gray-800 mb-3">VIP 特权</h2>
@@ -77,6 +77,6 @@ export default function VipPage() {
           </div>
         </div>
       </div>
-    </div>
+    </div></div>
   )
 }

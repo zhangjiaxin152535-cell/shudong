@@ -75,15 +75,15 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white border-b px-4 py-3 flex items-center gap-3">
+    <div className="h-full flex flex-col bg-gray-50">
+      <header className="bg-white border-b px-4 py-3 flex items-center gap-3 shrink-0">
         <button onClick={() => navigate('/')} className="p-1 hover:bg-gray-100 rounded">
           <ArrowLeft size={20} />
         </button>
         <h1 className="text-lg font-semibold">个人资料</h1>
       </header>
 
-      <div className="max-w-lg mx-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto"><div className="max-w-lg mx-auto p-6 space-y-6">
         {/* 头像 */}
         <div className="flex flex-col items-center">
           <div
@@ -188,6 +188,6 @@ export default function ProfilePage() {
           </p>
         </div>
       </div>
-    </div>
+    </div></div>
   )
 }

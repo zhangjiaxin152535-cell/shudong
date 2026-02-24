@@ -61,7 +61,7 @@ export default function App() {
 
 function Placeholder({ name }: { name: string }) {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="h-full flex items-center justify-center bg-gray-50">
       <div className="text-center">
         <p className="text-2xl font-bold text-gray-300 mb-2">{name}</p>
         <p className="text-gray-400">开发中...</p>

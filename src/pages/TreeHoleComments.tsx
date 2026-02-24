@@ -52,8 +52,8 @@ export default function TreeHoleComments() {
   if (!post) return <div className="min-h-screen flex items-center justify-center text-gray-400">帖子不存在</div>
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b px-4 py-3 flex items-center gap-3 shrink-0">
+    <div className="h-full flex flex-col bg-gray-50">
+      <header className="bg-white border-b px-4 py-3 flex items-center gap-3 shrink-0 sticky top-0 z-10">
         <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded"><ArrowLeft size={20} /></button>
         <h1 className="text-lg font-semibold">树洞评论</h1>
       </header>
