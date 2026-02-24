@@ -60,7 +60,8 @@ export default function BottleModal({ open, onClose }: Props) {
 
   const handleThrow = async () => {
     if (!throwContent.trim() || !user) return
-    if (!isVip && todayThrows >= 3) { setMessage('今天已扔满3个瓶子，开通VIP可无限'); return }
+    // !!! 上线前改回 3
+    if (!isVip && todayThrows >= 50) { setMessage('今天已扔满，开通VIP可无限'); return }
 
     await supabase.from('bottles').insert({ creator_id: user.id, content: throwContent.trim() })
     await updateDailyLimit('throws')
@@ -73,7 +74,8 @@ export default function BottleModal({ open, onClose }: Props) {
 
   const handleCatch = async () => {
     if (!user) return
-    if (!isVip && todayCatches >= 3) { setMessage('今天已捞满3个瓶子，开通VIP可无限'); return }
+    // !!! 上线前改回 3
+    if (!isVip && todayCatches >= 50) { setMessage('今天已捞满，开通VIP可无限'); return }
 
     const { data: bottles } = await supabase.from('bottles').select('*')
       .eq('status', 'floating').neq('creator_id', user.id).lt('pick_count', 10)
@@ -161,10 +163,12 @@ export default function BottleModal({ open, onClose }: Props) {
               <div className="text-center py-6 text-4xl">🌊🌊🌊</div>
               <div className="flex gap-3">
                 <button onClick={() => setView('throw')} className="flex-1 py-3 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors">
-                  扔瓶子 {!isVip && `(${todayThrows}/3)`}
+                  {/* !!! 上线前改回 /3 */}
+                  扔瓶子 {!isVip && `(${todayThrows}/50)`}
                 </button>
                 <button onClick={handleCatch} className="flex-1 py-3 bg-cyan-500 text-white rounded-xl font-medium hover:bg-cyan-600 transition-colors">
-                  捞瓶子 {!isVip && `(${todayCatches}/3)`}
+                  {/* !!! 上线前改回 /3 */}
+                  捞瓶子 {!isVip && `(${todayCatches}/50)`}
                 </button>
               </div>
 

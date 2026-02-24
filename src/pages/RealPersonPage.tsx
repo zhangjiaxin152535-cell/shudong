@@ -87,18 +87,20 @@ export default function RealPersonPage() {
                   </select>
                 </div>
 
-                <div className={!isVip ? 'opacity-50' : ''}>
-                  <label className="text-xs text-gray-500">年龄 {!isVip && '🔒'}</label>
+                {/* !!! 上线前改回: className={!isVip ? 'opacity-50' : ''} 和 disabled={!isVip} */}
+                <div>
+                  <label className="text-xs text-gray-500">年龄</label>
                   <div className="flex items-center gap-1 mt-1">
-                    <input type="number" value={ageMin} onChange={e => setAgeMin(e.target.value)} disabled={!isVip} placeholder="最小" min="1" max="150" className="w-full px-2 py-1.5 text-sm border rounded-lg" />
+                    <input type="number" value={ageMin} onChange={e => setAgeMin(e.target.value)} placeholder="最小" min="1" max="150" className="w-full px-2 py-1.5 text-sm border rounded-lg" />
                     <span className="text-gray-400 text-xs">~</span>
-                    <input type="number" value={ageMax} onChange={e => setAgeMax(e.target.value)} disabled={!isVip} placeholder="最大" min="1" max="150" className="w-full px-2 py-1.5 text-sm border rounded-lg" />
+                    <input type="number" value={ageMax} onChange={e => setAgeMax(e.target.value)} placeholder="最大" min="1" max="150" className="w-full px-2 py-1.5 text-sm border rounded-lg" />
                   </div>
                 </div>
 
-                <div className={!isVip ? 'opacity-50' : ''}>
-                  <label className="text-xs text-gray-500">地区 {!isVip && '🔒'}</label>
-                  <input value={searchProvince} onChange={e => setSearchProvince(e.target.value)} disabled={!isVip} placeholder="省/市/区" className="w-full mt-1 px-2 py-1.5 text-sm border rounded-lg" />
+                {/* !!! 上线前改回: className={!isVip ? 'opacity-50' : ''} 和 disabled={!isVip} */}
+                <div>
+                  <label className="text-xs text-gray-500">地区</label>
+                  <input value={searchProvince} onChange={e => setSearchProvince(e.target.value)} placeholder="省/市/区" className="w-full mt-1 px-2 py-1.5 text-sm border rounded-lg" />
                 </div>
 
                 <button onClick={handleSearch} className="w-full flex items-center justify-center gap-1 py-2 bg-blue-500 text-white text-sm rounded-lg hover:bg-blue-600 transition-colors">
