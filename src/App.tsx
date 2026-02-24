@@ -40,7 +40,7 @@ export default function App() {
           开发模式 · 上线前在 .env 里把 VITE_DEV_MODE 改为 false
         </div>
       )}
-      <div className={devMode && profile?.role === 'admin' ? 'pt-6' : ''}>
+      <div className={`h-full ${devMode && profile?.role === 'admin' ? 'pt-6' : ''}`}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/profile" element={<AuthGuard><ProfilePage /></AuthGuard>} />
