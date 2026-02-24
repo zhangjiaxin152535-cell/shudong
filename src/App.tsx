@@ -1,6 +1,9 @@
 import { useEffect } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuthStore } from './stores/authStore'
+import { useChatStore } from './stores/chatStore'
+import { useNotificationStore } from './stores/notificationStore'
+import { startRealtimeSubscriptions, stopRealtimeSubscriptions } from './lib/realtime'
 import LoginModal from './pages/LoginModal'
 import HomePage from './pages/HomePage'
 import ProfilePage from './pages/ProfilePage'
@@ -19,17 +22,30 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  const { initialize, initialized, devMode } = useAuthStore()
+  const { initialize, initialized, devMode, user } = useAuthStore()
   const profile = useAuthStore(s => s.profile)
 
   useEffect(() => { initialize() }, [])
+
+  useEffect(() => {
+    if (!user) {
+      stopRealtimeSubscriptions()
+      useChatStore.getState().reset()
+      useNotificationStore.getState().reset()
+      return
+    }
+    useChatStore.getState().loadConversations(user.id)
+    useNotificationStore.getState().loadNotifications(user.id)
+    startRealtimeSubscriptions(user.id)
+    return () => stopRealtimeSubscriptions()
+  }, [user?.id])
 
   if (!initialized) return <div className="flex-center" style={{ height: '100%', color: '#9ca3af' }}>加载中...</div>
 
   return (
     <BrowserRouter>
       <LoginModal />
-      {devMode && profile?.role === 'admin' && <div className="dev-banner">开发模式 · 上线前在 .env 里把 VITE_DEV_MODE 改为 false</div>}
+      {devMode && profile?.role === 'admin' && <div className="dev-banner">开发模式 · 上线前把 VITE_DEV_MODE 改为 false</div>}
       <div style={{ height: '100%', paddingTop: devMode && profile?.role === 'admin' ? 24 : 0 }}>
         <Routes>
           <Route path="/" element={<HomePage />} />

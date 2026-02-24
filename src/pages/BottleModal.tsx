@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
-import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
+import { useBottleStore } from '../stores/bottleStore'
 import { getOrCreateConversation } from '../lib/chat'
 import { useNavigate } from 'react-router-dom'
-import type { Bottle, BottleReply } from '../types/database'
 
 interface Props { open: boolean; onClose: () => void }
 type View = 'main' | 'throw' | 'catch' | 'myBottle'
@@ -13,92 +12,52 @@ export default function BottleModal({ open, onClose }: Props) {
   const navigate = useNavigate()
   const { user, profile } = useAuthStore()
   const isVip = profile?.is_vip ?? false
+  const store = useBottleStore()
+
   const [view, setView] = useState<View>('main')
   const [throwContent, setThrowContent] = useState('')
-  const [caughtBottle, setCaughtBottle] = useState<(Bottle & { replies: (BottleReply & { author_name: string })[]; creator_name: string }) | null>(null)
+  const [caughtBottle, setCaughtBottle] = useState<Awaited<ReturnType<typeof store.getBottleDetail>> | null>(null)
+  const [selectedMyBottle, setSelectedMyBottle] = useState<Awaited<ReturnType<typeof store.getBottleDetail>> | null>(null)
   const [replyInput, setReplyInput] = useState('')
-  const [myBottles, setMyBottles] = useState<Bottle[]>([])
-  const [selectedMyBottle, setSelectedMyBottle] = useState<(Bottle & { replies: (BottleReply & { author_name: string })[] }) | null>(null)
-  const [todayThrows, setTodayThrows] = useState(0)
-  const [todayCatches, setTodayCatches] = useState(0)
   const [message, setMessage] = useState('')
 
-  useEffect(() => { if (open && user) { loadDailyLimits(); loadMyBottles() } }, [open, user])
-
-  const loadDailyLimits = async () => {
-    if (!user) return
-    const today = new Date().toISOString().split('T')[0]
-    const { data } = await supabase.from('bottle_daily_limits').select('*').eq('user_id', user.id).eq('date', today).single()
-    if (data) { setTodayThrows(data.throws); setTodayCatches(data.catches) } else { setTodayThrows(0); setTodayCatches(0) }
-  }
-
-  const updateDailyLimit = async (field: 'throws' | 'catches') => {
-    if (!user) return
-    const today = new Date().toISOString().split('T')[0]
-    const { data: existing } = await supabase.from('bottle_daily_limits').select('*').eq('user_id', user.id).eq('date', today).single()
-    if (existing) await supabase.from('bottle_daily_limits').update({ [field]: existing[field] + 1 }).eq('user_id', user.id).eq('date', today)
-    else await supabase.from('bottle_daily_limits').insert({ user_id: user.id, date: today, [field]: 1 })
-  }
-
-  const loadMyBottles = async () => {
-    if (!user) return
-    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString()
-    const { data } = await supabase.from('bottles').select('*').eq('creator_id', user.id).gte('created_at', threeDaysAgo).order('created_at', { ascending: false })
-    if (data) setMyBottles(data)
-  }
+  useEffect(() => {
+    if (open && user) { store.loadMyBottles(user.id); store.loadDailyLimits(user.id) }
+  }, [open, user])
 
   const handleThrow = async () => {
     if (!throwContent.trim() || !user) return
-    // !!! 上线前改回 3
-    if (!isVip && todayThrows >= 50) { setMessage('今天已扔满，开通VIP可无限'); return }
-    await supabase.from('bottles').insert({ creator_id: user.id, content: throwContent.trim() })
-    await updateDailyLimit('throws')
-    setThrowContent(''); setTodayThrows(prev => prev + 1); setMessage('瓶子已扔进大海！🌊')
-    loadMyBottles(); setTimeout(() => { setMessage(''); setView('main') }, 1500)
+    const result = await store.throwBottle(user.id, throwContent.trim(), isVip)
+    if (result.error) { setMessage(result.error); return }
+    setThrowContent(''); setMessage('瓶子已扔进大海！🌊')
+    setTimeout(() => { setMessage(''); setView('main') }, 1500)
   }
 
   const handleCatch = async () => {
     if (!user) return
-    // !!! 上线前改回 3
-    if (!isVip && todayCatches >= 50) { setMessage('今天已捞满，开通VIP可无限'); return }
-    const { data: bottles } = await supabase.from('bottles').select('*').eq('status', 'floating').neq('creator_id', user.id).lt('pick_count', 10)
-    if (!bottles || bottles.length === 0) { setMessage('大海空空的，没有捞到瓶子~'); return }
-    const bottle = bottles[Math.floor(Math.random() * bottles.length)]
-    const { data: replies } = await supabase.from('bottle_replies').select('*').eq('bottle_id', bottle.id).order('created_at', { ascending: true })
-    const { data: creator } = await supabase.from('profiles').select('nickname').eq('id', bottle.creator_id).single()
-    const enrichedReplies = replies ? await Promise.all(replies.map(async r => {
-      const { data: p } = await supabase.from('profiles').select('nickname').eq('id', r.user_id).single()
-      return { ...r, author_name: p?.nickname || '匿名' }
-    })) : []
-    await supabase.from('bottles').update({ pick_count: bottle.pick_count + 1 }).eq('id', bottle.id)
-    if (bottle.pick_count + 1 >= bottle.max_picks) await supabase.from('bottles').update({ status: 'returned', returned_at: new Date().toISOString() }).eq('id', bottle.id)
-    await updateDailyLimit('catches'); setTodayCatches(prev => prev + 1)
-    setCaughtBottle({ ...bottle, replies: enrichedReplies, creator_name: creator?.nickname || '匿名' }); setView('catch')
+    const result = await store.catchBottle(user.id, isVip)
+    if (result.error) { setMessage(result.error); return }
+    if (result.bottle) { setCaughtBottle(result.bottle); setView('catch') }
   }
 
   const handleReplyAndThrow = async () => {
     if (!caughtBottle || !user) return
-    if (replyInput.trim()) await supabase.from('bottle_replies').insert({ bottle_id: caughtBottle.id, user_id: user.id, content: replyInput.trim(), pick_number: caughtBottle.pick_count })
-    setReplyInput(''); setMessage('瓶子已扔回大海！🌊'); setTimeout(() => { setMessage(''); setView('main') }, 1200)
+    await store.replyToBottle(caughtBottle.id, user.id, replyInput, caughtBottle.pick_count)
+    setReplyInput(''); setMessage('瓶子已扔回大海！🌊')
+    setTimeout(() => { setMessage(''); setView('main') }, 1200)
   }
-
-  const handleJustThrowBack = () => { setView('main'); setReplyInput(''); setCaughtBottle(null) }
 
   const handleReplyAndSayHi = async (targetUserId: string) => {
     if (!user) return
     if (targetUserId === user.id) { setMessage('不能和自己打招呼'); return }
-    if (replyInput.trim() && caughtBottle) await supabase.from('bottle_replies').insert({ bottle_id: caughtBottle.id, user_id: user.id, content: replyInput.trim(), pick_number: caughtBottle.pick_count })
+    if (caughtBottle) await store.replyToBottle(caughtBottle.id, user.id, replyInput, caughtBottle.pick_count)
     const convId = await getOrCreateConversation(user.id, targetUserId)
     if (convId) { onClose(); navigate(`/chat/${convId}`) }
   }
 
-  const viewMyBottleDetail = async (bottle: Bottle) => {
-    const { data: replies } = await supabase.from('bottle_replies').select('*').eq('bottle_id', bottle.id).order('created_at', { ascending: true })
-    const enriched = replies ? await Promise.all(replies.map(async r => {
-      const { data: p } = await supabase.from('profiles').select('nickname').eq('id', r.user_id).single()
-      return { ...r, author_name: p?.nickname || '匿名' }
-    })) : []
-    setSelectedMyBottle({ ...bottle, replies: enriched }); setView('myBottle')
+  const viewMyBottleDetail = async (bottle: typeof store.myBottles[0]) => {
+    const detail = await store.getBottleDetail(bottle)
+    setSelectedMyBottle(detail); setView('myBottle')
   }
 
   if (!open) return null
@@ -120,18 +79,17 @@ export default function BottleModal({ open, onClose }: Props) {
               <div className="text-center" style={{ padding: '24px 0', fontSize: 36 }}>🌊🌊🌊</div>
               <div className="flex gap-3">
                 {/* !!! 上线前改回 /3 */}
-                <button className="btn btn-primary btn-full" onClick={() => setView('throw')}>扔瓶子 {!isVip && `(${todayThrows}/50)`}</button>
-                {/* !!! 上线前改回 /3 */}
-                <button className="btn btn-full" style={{ background: '#06b6d4', color: '#fff' }} onClick={handleCatch}>捞瓶子 {!isVip && `(${todayCatches}/50)`}</button>
+                <button className="btn btn-primary btn-full" onClick={() => setView('throw')}>扔瓶子 {!isVip && `(${store.todayThrows}/50)`}</button>
+                <button className="btn btn-full" style={{ background: '#06b6d4', color: '#fff' }} onClick={handleCatch}>捞瓶子 {!isVip && `(${store.todayCatches}/50)`}</button>
               </div>
-              {myBottles.length > 0 && (
+              {store.myBottles.length > 0 && (
                 <div>
-                  <h3 className="text-sm text-bold mb-2" style={{ color: '#1e40af' }}>🏖️ 沙滩上的瓶子（我的）</h3>
+                  <h3 className="text-sm text-bold mb-2" style={{ color: '#1e40af' }}>🏖️ 沙滩上的瓶子</h3>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-                    {myBottles.map(b => (
+                    {store.myBottles.map(b => (
                       <button key={b.id} className="card card-hover text-center" style={{ background: 'rgba(255,255,255,.7)' }} onClick={() => viewMyBottleDetail(b)}>
                         <span style={{ fontSize: 24, display: 'block', marginBottom: 4 }}>🫙</span>
-                        <span className="text-xs" style={{ color: '#4b5563' }}>{b.status === 'returned' ? '已回来' : `流浪中(${b.pick_count}次)`}</span>
+                        <span className="text-xs">{b.status === 'returned' ? '已回来' : `流浪中(${b.pick_count}次)`}</span>
                       </button>
                     ))}
                   </div>
@@ -167,7 +125,7 @@ export default function BottleModal({ open, onClose }: Props) {
               </div>
               <textarea className="textarea" value={replyInput} onChange={e => setReplyInput(e.target.value)} placeholder="写你的回复（可选）..." rows={2} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                <button className="btn btn-ghost btn-full" onClick={handleJustThrowBack}>① 扔回海里（不回复）</button>
+                <button className="btn btn-ghost btn-full" onClick={() => { setView('main'); setReplyInput(''); setCaughtBottle(null) }}>① 扔回海里（不回复）</button>
                 <button className="btn btn-full" style={{ background: '#60a5fa', color: '#fff' }} onClick={handleReplyAndThrow}>② 回复后扔回海里</button>
                 <button className="btn btn-success btn-full" onClick={() => handleReplyAndSayHi(caughtBottle.creator_id)}>③ 回复 + 和原作者打招呼</button>
               </div>
@@ -178,7 +136,7 @@ export default function BottleModal({ open, onClose }: Props) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <h3 className="text-medium" style={{ color: '#1e40af' }}>我的瓶子</h3>
               <div className="card" style={{ background: 'rgba(255,255,255,.8)' }}>
-                <p className="text-xs text-gray mb-2">状态：{selectedMyBottle.status === 'returned' ? '已回来' : `在海里流浪中（已捞${selectedMyBottle.pick_count}次）`}</p>
+                <p className="text-xs text-gray mb-2">状态：{selectedMyBottle.status === 'returned' ? '已回来' : `流浪中（已捞${selectedMyBottle.pick_count}次）`}</p>
                 <p className="text-sm text-medium mb-2">我写的：</p>
                 <p className="text-sm mb-3">{selectedMyBottle.content}</p>
                 {selectedMyBottle.replies.length > 0 ? (
