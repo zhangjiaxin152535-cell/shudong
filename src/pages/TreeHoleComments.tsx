@@ -46,7 +46,7 @@ export default function TreeHoleComments() {
 
   return (
     <div className="page">
-      <PageHeader title="树洞评论" />
+      <PageHeader title="树洞评论" backTo="/real-person?tab=treehole" />
 
       <div className="page-scroll p-4">
         <div className="container-lg">

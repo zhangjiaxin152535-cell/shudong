@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useState, useEffect } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Crown, Search } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
 import { useChatStore } from '../stores/chatStore'
@@ -15,7 +15,9 @@ type RightPanel = 'chatlist' | 'search' | 'treehole'
 export default function RealPersonPage() {
   const navigate = useNavigate()
   const { user } = useAuthStore()
-  const [rightPanel, setRightPanel] = useState<RightPanel>('chatlist')
+  const [searchParams] = useSearchParams()
+  const initialTab = searchParams.get('tab') === 'treehole' ? 'treehole' as RightPanel : 'chatlist' as RightPanel
+  const [rightPanel, setRightPanel] = useState<RightPanel>(initialTab)
   const [searchGender, setSearchGender] = useState('')
   const [ageMin, setAgeMin] = useState('')
   const [ageMax, setAgeMax] = useState('')
