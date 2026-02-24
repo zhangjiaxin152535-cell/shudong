@@ -62,7 +62,7 @@ export default function HomePage() {
               <Settings size={16} /> 管理后台
             </button>
           )}
-          {devMode && (
+          {devMode && isAdmin && (
             <button onClick={() => navigate('/dev-tools')} className="flex items-center gap-2 px-4 py-2 text-sm text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
               🛠 开发者工具
             </button>

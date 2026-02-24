@@ -203,15 +203,19 @@ export default function BottleModal({ open, onClose }: Props) {
           {view === 'catch' && caughtBottle && (
             <div className="space-y-3">
               <h3 className="font-medium text-blue-800">你捞到了一个瓶子！</h3>
-              <div className="bg-white/80 rounded-xl p-4 space-y-2">
+              <div className="bg-white/80 rounded-xl p-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm">🧑 {caughtBottle.creator_name}：</span>
+                  <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-sm shrink-0">👤</div>
+                  <span className="text-sm font-medium">{caughtBottle.creator_name}</span>
                 </div>
-                <p className="text-sm text-gray-700 pl-6">{caughtBottle.content}</p>
+                <p className="text-sm text-gray-700 ml-10">{caughtBottle.content}</p>
                 {caughtBottle.replies.map(r => (
-                  <div key={r.id} className="pl-6">
-                    <span className="text-sm text-blue-600">👤 {r.author_name}：</span>
-                    <span className="text-sm text-gray-700">{r.content}</span>
+                  <div key={r.id} className="flex items-start gap-2 ml-6 pl-4 border-l-2 border-blue-200">
+                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs shrink-0 mt-0.5">👤</div>
+                    <div>
+                      <span className="text-sm font-medium text-blue-600">{r.author_name}</span>
+                      <p className="text-sm text-gray-700">{r.content}</p>
+                    </div>
                   </div>
                 ))}
                 <p className="text-xs text-gray-400 pt-1">已被打捞 {caughtBottle.pick_count}/{caughtBottle.max_picks} 次</p>
@@ -243,9 +247,12 @@ export default function BottleModal({ open, onClose }: Props) {
                 {selectedMyBottle.replies.length > 0 ? (
                   <div className="space-y-2 border-t pt-2">
                     {selectedMyBottle.replies.map(r => (
-                      <div key={r.id}>
-                        <span className="text-sm text-blue-600">👤 {r.author_name}：</span>
-                        <span className="text-sm text-gray-700">{r.content}</span>
+                      <div key={r.id} className="flex items-start gap-2">
+                        <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-xs shrink-0 mt-0.5">👤</div>
+                        <div>
+                          <span className="text-sm font-medium text-blue-600">{r.author_name}</span>
+                          <p className="text-sm text-gray-700">{r.content}</p>
+                        </div>
                       </div>
                     ))}
                   </div>

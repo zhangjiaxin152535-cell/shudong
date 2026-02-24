@@ -24,6 +24,7 @@ function Loading() {
 
 export default function App() {
   const { initialize, initialized, devMode } = useAuthStore()
+  const profile = useAuthStore(s => s.profile)
 
   useEffect(() => {
     initialize()
@@ -34,12 +35,12 @@ export default function App() {
   return (
     <BrowserRouter>
       <LoginModal />
-      {devMode && (
+      {devMode && profile?.role === 'admin' && (
         <div className="fixed top-0 left-0 right-0 bg-orange-500 text-white text-xs text-center py-1 z-50">
-          开发模式 · 免登录 · 所有功能可用 · 上线前在 .env 里把 VITE_DEV_MODE 改为 false
+          开发模式 · 上线前在 .env 里把 VITE_DEV_MODE 改为 false
         </div>
       )}
-      <div className={devMode ? 'pt-6' : ''}>
+      <div className={devMode && profile?.role === 'admin' ? 'pt-6' : ''}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/profile" element={<AuthGuard><ProfilePage /></AuthGuard>} />
