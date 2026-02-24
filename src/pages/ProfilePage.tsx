@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowLeft, Camera } from 'lucide-react'
+import { Camera } from 'lucide-react'
 import { useAuthStore } from '../stores/authStore'
+import PageHeader from '../components/common/PageHeader'
 import ChinaAreaPicker from '../components/common/ChinaAreaPicker'
 
 export default function ProfilePage() {
@@ -31,163 +32,65 @@ export default function ProfilePage() {
     }
   }, [profile])
 
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click()
-  }
-
+  const handleAvatarClick = () => fileInputRef.current?.click()
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage('图片不能超过 5MB')
-      return
-    }
-    const url = URL.createObjectURL(file)
-    setAvatarPreview(url)
-    // TODO: 上传到 R2，拿到 URL 后更新 profile.avatar_url
-  }
-
-  const handleAreaChange = (prov: string, c: string, dist: string) => {
-    setProvince(prov)
-    setCity(c)
-    setDistrict(dist)
+    if (file.size > 5 * 1024 * 1024) { setMessage('图片不能超过 5MB'); return }
+    setAvatarPreview(URL.createObjectURL(file))
   }
 
   const handleSave = async () => {
-    setSaving(true)
-    setMessage('')
+    setSaving(true); setMessage('')
     const result = await updateProfile({
       nickname: nickname || null,
       gender: (gender as 'male' | 'female' | 'other') || null,
       age: age ? parseInt(age) : null,
-      province: province || null,
-      city: city || null,
-      district: district || null,
+      province: province || null, city: city || null, district: district || null,
     })
     setSaving(false)
-    if (result.error) {
-      setMessage('保存失败：' + result.error)
-    } else {
-      setMessage('保存成功！')
-      setTimeout(() => setMessage(''), 3000)
-    }
-    console.log('保存结果:', result)
+    if (result.error) setMessage('保存失败：' + result.error)
+    else { setMessage('保存成功！'); setTimeout(() => setMessage(''), 3000) }
   }
 
   return (
-    <div className="h-full flex flex-col bg-gray-50">
-      <header className="bg-white border-b px-4 py-3 flex items-center gap-3 shrink-0">
-        <button onClick={() => navigate('/')} className="p-1 hover:bg-gray-100 rounded">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-lg font-semibold">个人资料</h1>
-      </header>
-
-      <div className="flex-1 overflow-y-auto"><div className="max-w-lg mx-auto p-6 space-y-6">
-        {/* 头像 */}
-        <div className="flex flex-col items-center">
-          <div
-            onClick={handleAvatarClick}
-            className="relative w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-300 transition-colors overflow-hidden group"
-          >
-            {avatarPreview ? (
-              <img src={avatarPreview} alt="头像" className="w-full h-full object-cover" />
-            ) : (
-              <Camera size={32} className="text-gray-400" />
-            )}
-            <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-              <Camera size={20} className="text-white" />
+    <div className="page">
+      <PageHeader title="个人资料" backTo="/" />
+      <div className="page-scroll">
+        <div className="container-sm p-6" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* 头像 */}
+          <div className="text-center">
+            <div className="avatar avatar-xl avatar-upload" onClick={handleAvatarClick} style={{ margin: '0 auto' }}>
+              {avatarPreview ? <img src={avatarPreview} alt="头像" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} /> : <Camera size={32} color="#9ca3af" />}
+              <div className="avatar-hover-mask"><Camera size={20} color="#fff" /></div>
             </div>
-          </div>
-          <p className="text-sm text-gray-500 mt-2">点击更换头像</p>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            onChange={handleAvatarChange}
-            className="hidden"
-          />
-        </div>
-
-        {/* 表单 */}
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">姓名</label>
-            <input
-              value={nickname}
-              onChange={e => setNickname(e.target.value)}
-              placeholder="输入你的昵称"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-            />
+            <p className="text-sm text-gray mt-2">点击更换头像</p>
+            <input ref={fileInputRef} type="file" accept="image/*" onChange={handleAvatarChange} className="hidden" />
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">性别</label>
-            <select
-              value={gender}
-              onChange={e => setGender(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none bg-white"
-            >
-              <option value="">请选择</option>
-              <option value="male">男</option>
-              <option value="female">女</option>
-              <option value="other">其他</option>
-            </select>
+          {/* 表单 */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div><label className="label">姓名</label><input className="input" value={nickname} onChange={e => setNickname(e.target.value)} placeholder="输入你的昵称" /></div>
+            <div>
+              <label className="label">性别</label>
+              <select className="select" value={gender} onChange={e => setGender(e.target.value)}>
+                <option value="">请选择</option><option value="male">男</option><option value="female">女</option><option value="other">其他</option>
+              </select>
+            </div>
+            <div><label className="label">年龄</label><input className="input" type="number" value={age} onChange={e => setAge(e.target.value)} placeholder="输入年龄" min="1" max="150" /></div>
+            <div><label className="label mb-2">地区</label><ChinaAreaPicker province={province} city={city} district={district} onChange={(p,c,d) => { setProvince(p); setCity(c); setDistrict(d) }} /></div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">年龄</label>
-            <input
-              type="number"
-              value={age}
-              onChange={e => setAge(e.target.value)}
-              placeholder="输入年龄"
-              min="1"
-              max="150"
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-            />
+          {message && <p className={`text-sm text-center ${message.includes('失败') || message.includes('不能') ? 'text-red' : 'text-green'}`}>{message}</p>}
+
+          <button className="btn btn-primary btn-full" onClick={handleSave} disabled={saving} style={{ padding: 12 }}>{saving ? '保存中...' : '保存'}</button>
+
+          <div className="divider">
+            <button className="btn btn-full" onClick={async () => { await logout(); navigate('/') }} style={{ border: '1px solid #fca5a5', color: '#ef4444', background: 'none', padding: 12 }}>退出登录</button>
+            <p className="text-xs text-gray text-center mt-2">所有数据按账号保存在云端，换设备登录同一账号即可恢复</p>
           </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">地区</label>
-            <ChinaAreaPicker
-              province={province}
-              city={city}
-              district={district}
-              onChange={handleAreaChange}
-            />
-          </div>
-        </div>
-
-        {message && (
-          <p className={`text-sm text-center ${message.includes('失败') || message.includes('不能') ? 'text-red-500' : 'text-green-500'}`}>
-            {message}
-          </p>
-        )}
-
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="w-full py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 transition-colors"
-        >
-          {saving ? '保存中...' : '保存'}
-        </button>
-
-        <div className="border-t pt-4 mt-4">
-          <button
-            onClick={async () => {
-              await logout()
-              navigate('/')
-            }}
-            className="w-full py-3 border border-red-300 text-red-500 rounded-lg font-medium hover:bg-red-50 transition-colors"
-          >
-            退出登录
-          </button>
-          <p className="text-xs text-gray-400 text-center mt-2">
-            所有数据按账号保存在云端，换设备登录同一账号即可恢复
-          </p>
         </div>
       </div>
-    </div></div>
+    </div>
   )
 }

@@ -32,9 +32,7 @@ export default function ChatWindow() {
     return () => { cleanup?.then(sub => sub?.()) }
   }, [user, realId])
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [messages])
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [messages])
 
   const loadChatData = async () => {
     if (!user || !realId) return
@@ -64,8 +62,7 @@ export default function ChatWindow() {
     if (!realId) return
     const table = isGroup ? 'group_messages' : 'messages'
     const column = isGroup ? 'group_id' : 'conversation_id'
-    const channel = supabase
-      .channel(`chat-${realId}`)
+    const channel = supabase.channel(`chat-${realId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table, filter: `${column}=eq.${realId}` }, (payload) => {
         const newMsg = payload.new as Message
         setMessages(prev => prev.some(m => m.id === newMsg.id) ? prev : [...prev, newMsg])
@@ -73,8 +70,7 @@ export default function ChatWindow() {
           setConversationStatus('friend')
           supabase.from('conversations').update({ status: 'friend' }).eq('id', realId)
         }
-      })
-      .subscribe()
+      }).subscribe()
     return Promise.resolve(() => { supabase.removeChannel(channel) })
   }
 
@@ -93,70 +89,46 @@ export default function ChatWindow() {
     }
   }
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
-  }
-
-  const handleFileSelect = (accept: string) => {
-    if (fileInputRef.current) { fileInputRef.current.accept = accept; fileInputRef.current.click() }
-  }
-
+  const handleKeyDown = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() } }
+  const handleFileSelect = (accept: string) => { if (fileInputRef.current) { fileInputRef.current.accept = accept; fileInputRef.current.click() } }
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user || !realId) return
     const type = file.type.startsWith('image') ? 'image' : file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'voice' : 'file'
     const table = isGroup ? 'group_messages' : 'messages'
-    await supabase.from(table).insert({
-      sender_id: user.id, content_type: type,
-      text_content: `[${type === 'image' ? '图片' : type === 'video' ? '视频' : type === 'voice' ? '语音' : '文件'}] ${file.name}`,
-      ...(isGroup ? { group_id: realId } : { conversation_id: realId }),
-    })
+    await supabase.from(table).insert({ sender_id: user.id, content_type: type, text_content: `[${type === 'image' ? '图片' : type === 'video' ? '视频' : type === 'voice' ? '语音' : '文件'}] ${file.name}`, ...(isGroup ? { group_id: realId } : { conversation_id: realId }) })
     e.target.value = ''
   }
 
-  if (loading) return <div className="h-full flex items-center justify-center text-gray-400">加载中...</div>
+  if (loading) return <div className="page"><div className="flex-center page-scroll text-gray">加载中...</div></div>
 
   return (
-    <div className="h-full flex flex-col overflow-hidden bg-gray-100">
+    <div className="page" style={{ background: '#f3f4f6' }}>
 
-      {/* ====== 区域1：顶部固定栏 ====== */}
+      {/* ====== 区域1：顶部 ====== */}
       <PageHeader
         title={chatName}
+        subtitle={!isGroup && conversationStatus === 'stranger' ? '陌生人 · 回复后成为好友' : undefined}
         backTo="/real-person"
-        right={!isGroup ? (
-          <>
-            <button className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50" title="拉黑"><Ban size={18} /></button>
-            <button className="p-2 text-gray-400 hover:text-orange-500 rounded-lg hover:bg-orange-50" title="举报"><ShieldAlert size={18} /></button>
-          </>
-        ) : undefined}
+        right={!isGroup ? (<>
+          <button className="icon-btn icon-btn-danger" title="拉黑"><Ban size={18} /></button>
+          <button className="icon-btn icon-btn-warning" title="举报"><ShieldAlert size={18} /></button>
+        </>) : undefined}
       />
-      {!isGroup && conversationStatus === 'stranger' && (
-        <div className="text-center py-1 bg-orange-50 border-b shrink-0">
-          <span className="text-xs text-orange-500">陌生人 · 回复后成为好友</span>
-        </div>
-      )}
 
-      {/* ====== 区域2：消息内容（可滚动） ====== */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-2xl mx-auto px-4 py-3 space-y-3">
-          {messages.length === 0 && <p className="text-center text-gray-400 py-8">开始聊天吧</p>}
+      {/* ====== 区域2：消息（可滚动） ====== */}
+      <div className="page-scroll" style={{ padding: '12px 16px' }}>
+        <div className="container-lg" style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {messages.length === 0 && <div className="empty-state">开始聊天吧</div>}
           {messages.map(msg => {
             const isMine = msg.sender_id === user?.id
             return (
-              <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
-                <div className={`flex items-end gap-2 max-w-[75%] ${isMine ? 'flex-row-reverse' : ''}`}>
-                  <div className="w-8 h-8 bg-gray-300 rounded-full shrink-0 flex items-center justify-center text-xs">
-                    {isMine ? '我' : '👤'}
-                  </div>
+              <div key={msg.id} style={{ display: 'flex', justifyContent: isMine ? 'flex-end' : 'flex-start' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, maxWidth: '75%', flexDirection: isMine ? 'row-reverse' : 'row' }}>
+                  <div className="avatar avatar-md">{isMine ? '我' : '👤'}</div>
                   <div>
-                    <div className={`px-3 py-2 rounded-2xl text-sm leading-relaxed ${
-                      isMine ? 'bg-blue-500 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md shadow-sm'
-                    }`}>
-                      {msg.text_content}
-                    </div>
-                    <p className={`text-xs text-gray-400 mt-1 ${isMine ? 'text-right' : ''}`}>
-                      {formatTime(msg.created_at)}
-                    </p>
+                    <div className={isMine ? 'bubble bubble-mine' : 'bubble bubble-other'}>{msg.text_content}</div>
+                    <div className="text-xs text-gray mt-1" style={{ textAlign: isMine ? 'right' : 'left' }}>{formatTime(msg.created_at)}</div>
                   </div>
                 </div>
               </div>
@@ -166,33 +138,26 @@ export default function ChatWindow() {
         </div>
       </div>
 
-      {/* ====== 区域3：底部输入区（固定在底部，70%宽度居中） ====== */}
-      <div className="shrink-0 bg-white border-t">
+      {/* ====== 区域3：底部输入（固定，70%居中） ====== */}
+      <div className="page-footer">
         {!isGroup && conversationStatus === 'stranger' && (
-          <div className="text-center py-1">
-            <span className="text-xs text-gray-400">
-              {isLocked ? '对方回复前最多发送3条消息' : `已发送 ${mySentCount}/${maxStrangerMessages} 条`}
-            </span>
+          <div className="text-center text-xs text-gray" style={{ padding: '4px 0' }}>
+            {isLocked ? '对方回复前最多发送3条消息' : `已发送 ${mySentCount}/${maxStrangerMessages} 条`}
           </div>
         )}
-        <div className="w-[70%] mx-auto py-3">
-          <div className="flex items-center gap-1 mb-1.5">
-            <button onClick={() => handleFileSelect('image/*')} disabled={isLocked} className="p-1.5 text-gray-400 hover:text-blue-500 rounded disabled:opacity-30"><Image size={16} /></button>
-            <button disabled={isLocked} className="p-1.5 text-gray-400 hover:text-blue-500 rounded disabled:opacity-30"><Mic size={16} /></button>
-            <button onClick={() => handleFileSelect('*/*')} disabled={isLocked} className="p-1.5 text-gray-400 hover:text-blue-500 rounded disabled:opacity-30"><File size={16} /></button>
-            <button onClick={() => handleFileSelect('video/*')} disabled={isLocked} className="p-1.5 text-gray-400 hover:text-blue-500 rounded disabled:opacity-30"><Video size={16} /></button>
+        <div className="container-70 py-3">
+          <div className="flex gap-2" style={{ marginBottom: 6 }}>
+            <button className="icon-btn" onClick={() => handleFileSelect('image/*')} disabled={isLocked}><Image size={16} /></button>
+            <button className="icon-btn" disabled={isLocked}><Mic size={16} /></button>
+            <button className="icon-btn" onClick={() => handleFileSelect('*/*')} disabled={isLocked}><File size={16} /></button>
+            <button className="icon-btn" onClick={() => handleFileSelect('video/*')} disabled={isLocked}><Video size={16} /></button>
           </div>
           <div className="flex gap-2">
-            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} disabled={isLocked}
-              placeholder={isLocked ? '等待对方回复...' : '输入消息...'}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-xl text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100" />
-            <button onClick={handleSend} disabled={isLocked || !input.trim()} className="px-3 py-2 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-30">
-              <Send size={16} />
-            </button>
+            <input className="input" value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} disabled={isLocked} placeholder={isLocked ? '等待对方回复...' : '输入消息...'} />
+            <button className="btn btn-primary" onClick={handleSend} disabled={isLocked || !input.trim()}><Send size={16} /></button>
           </div>
         </div>
       </div>
-
       <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
     </div>
   )

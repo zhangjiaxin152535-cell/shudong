@@ -3,14 +3,14 @@ import { ArrowLeft } from 'lucide-react'
 
 interface Props {
   title: string
+  subtitle?: string
   backTo?: string
   onBack?: () => void
   right?: React.ReactNode
 }
 
-export default function PageHeader({ title, backTo, onBack, right }: Props) {
+export default function PageHeader({ title, subtitle, backTo, onBack, right }: Props) {
   const navigate = useNavigate()
-
   const handleBack = () => {
     if (onBack) onBack()
     else if (backTo) navigate(backTo)
@@ -18,14 +18,15 @@ export default function PageHeader({ title, backTo, onBack, right }: Props) {
   }
 
   return (
-    <header className="h-14 bg-white border-b px-4 flex items-center justify-between shrink-0">
-      <div className="flex items-center gap-3">
-        <button onClick={handleBack} className="p-1 hover:bg-gray-100 rounded">
-          <ArrowLeft size={20} />
-        </button>
-        <h1 className="text-base font-semibold">{title}</h1>
+    <header className="page-header">
+      <div className="page-header-left">
+        <button className="icon-btn" onClick={handleBack}><ArrowLeft size={20} /></button>
+        <div>
+          <h1>{title}</h1>
+          {subtitle && <span className="text-xs text-orange">{subtitle}</span>}
+        </div>
       </div>
-      {right && <div className="flex items-center gap-2">{right}</div>}
+      {right && <div className="page-header-right">{right}</div>}
     </header>
   )
 }

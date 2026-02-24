@@ -12,92 +12,50 @@ export default function HomePage() {
   const devMode = useAuthStore(s => s.devMode)
 
   const handleNeedAuth = (path: string) => {
-    if (!isLoggedIn) {
-      setShowLoginModal(true)
-      return
-    }
+    if (!isLoggedIn) { setShowLoginModal(true); return }
     navigate(path)
   }
 
   return (
-    <div className="h-full bg-gradient-to-b from-blue-50 to-white flex flex-col overflow-hidden">
-      {/* 顶部栏 */}
-      <header className="flex items-center justify-between px-6 py-4">
-        <h1 className="text-2xl font-bold text-gray-800">首页</h1>
-        <div className="flex items-center gap-4">
-          {isLoggedIn ? (
-            <>
-              <button
-                onClick={() => navigate('/notifications')}
-                className="relative p-2 text-gray-600 hover:text-blue-600 transition-colors"
-                title="系统通知"
-              >
-                <Mail size={22} />
-                {/* TODO: 未读数角标 */}
-              </button>
-              <button
-                onClick={() => navigate('/profile')}
-                className="flex items-center gap-2 px-3 py-2 text-gray-600 hover:text-blue-600 transition-colors"
-              >
-                <User size={18} />
-                <span className="text-sm">{profile?.nickname || '个人资料'}</span>
-              </button>
-            </>
-          ) : (
-            <button
-              onClick={() => setShowLoginModal(true)}
-              className="px-4 py-2 text-blue-600 border border-blue-600 rounded-lg hover:bg-blue-50 transition-colors"
-            >
-              登录
+    <div className="page" style={{ background: 'linear-gradient(to bottom, #eff6ff, #fff)' }}>
+      {/* 顶部 */}
+      <header className="page-header">
+        <h1 style={{ fontSize: 20 }}>首页</h1>
+        <div className="flex gap-3 items-center">
+          {isLoggedIn ? (<>
+            <button className="icon-btn" onClick={() => navigate('/notifications')} title="系统通知"><Mail size={20} /></button>
+            <button className="flex items-center gap-2 icon-btn" onClick={() => navigate('/profile')}>
+              <User size={16} /><span className="text-sm">{profile?.nickname || '个人资料'}</span>
             </button>
+          </>) : (
+            <button className="btn btn-outline" onClick={() => setShowLoginModal(true)}>登录</button>
           )}
         </div>
       </header>
 
-      {/* 管理员 + 开发者入口 */}
+      {/* 管理员入口 */}
       {isLoggedIn && (isAdmin || devMode) && (
-        <div className="px-6 flex gap-2 flex-wrap">
-          {isAdmin && (
-            <button onClick={() => navigate('/admin')} className="flex items-center gap-2 px-4 py-2 text-sm text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors">
-              <Settings size={16} /> 管理后台
-            </button>
-          )}
-          {devMode && isAdmin && (
-            <button onClick={() => navigate('/dev-tools')} className="flex items-center gap-2 px-4 py-2 text-sm text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
-              🛠 开发者工具
-            </button>
-          )}
+        <div className="flex gap-2 flex-wrap" style={{ padding: '0 24px', marginTop: 8 }}>
+          {isAdmin && <button className="btn btn-sm btn-yellow" onClick={() => navigate('/admin')}><Settings size={14} /> 管理后台</button>}
+          {devMode && isAdmin && <button className="btn btn-sm" style={{ background: '#f3e8ff', color: '#7c3aed' }} onClick={() => navigate('/dev-tools')}>🛠 开发者工具</button>}
         </div>
       )}
 
       {/* 主入口 */}
-      <main className="flex-1 flex flex-col items-center justify-center gap-6 px-6 overflow-y-auto">
-        <button
-          onClick={() => handleNeedAuth('/real-person')}
-          className="w-full max-w-sm py-6 bg-white rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 transition-all hover:-translate-y-1"
-        >
-          <div className="text-center">
-            <span className="text-4xl mb-2 block">👥</span>
-            <span className="text-xl font-semibold text-gray-800">真人区</span>
-            <p className="text-sm text-gray-500 mt-1">交友 · 漂流瓶 · 树洞</p>
-          </div>
+      <div className="page-scroll flex-center" style={{ flexDirection: 'column', gap: 24 }}>
+        <button className="entry-card" onClick={() => handleNeedAuth('/real-person')}>
+          <div className="entry-card-icon">👥</div>
+          <div className="entry-card-title">真人区</div>
+          <div className="entry-card-desc">交友 · 漂流瓶 · 树洞</div>
         </button>
-
-        <button
-          onClick={() => handleNeedAuth('/ai')}
-          className="w-full max-w-sm py-6 bg-white rounded-2xl shadow-lg hover:shadow-xl border border-gray-100 transition-all hover:-translate-y-1"
-        >
-          <div className="text-center">
-            <span className="text-4xl mb-2 block">🤖</span>
-            <span className="text-xl font-semibold text-gray-800">Ai角色区</span>
-            <p className="text-sm text-gray-500 mt-1">角色卡 · 世界书 · 预设</p>
-          </div>
+        <button className="entry-card" onClick={() => handleNeedAuth('/ai')}>
+          <div className="entry-card-icon">🤖</div>
+          <div className="entry-card-title">Ai角色区</div>
+          <div className="entry-card-desc">角色卡 · 世界书 · 预设</div>
         </button>
-      </main>
+      </div>
 
-      <footer className="text-center py-4 text-xs text-gray-400">
-        树洞 · 你的秘密花园
-      </footer>
+      <footer className="text-center text-xs text-gray" style={{ padding: 16 }}>树洞 · 你的秘密花园</footer>
     </div>
   )
 }

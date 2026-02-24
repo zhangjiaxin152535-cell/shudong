@@ -13,34 +13,24 @@ import DevTools from './pages/DevTools'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, initialized, devMode } = useAuthStore()
-  if (!initialized) return <Loading />
+  if (!initialized) return <div className="flex-center" style={{ height: '100%', color: '#9ca3af' }}>加载中...</div>
   if (!user && !devMode) return <Navigate to="/" replace />
   return <>{children}</>
-}
-
-function Loading() {
-  return <div className="min-h-screen flex items-center justify-center text-gray-400">加载中...</div>
 }
 
 export default function App() {
   const { initialize, initialized, devMode } = useAuthStore()
   const profile = useAuthStore(s => s.profile)
 
-  useEffect(() => {
-    initialize()
-  }, [])
+  useEffect(() => { initialize() }, [])
 
-  if (!initialized) return <Loading />
+  if (!initialized) return <div className="flex-center" style={{ height: '100%', color: '#9ca3af' }}>加载中...</div>
 
   return (
     <BrowserRouter>
       <LoginModal />
-      {devMode && profile?.role === 'admin' && (
-        <div className="fixed top-0 left-0 right-0 bg-orange-500 text-white text-xs text-center py-1 z-50">
-          开发模式 · 上线前在 .env 里把 VITE_DEV_MODE 改为 false
-        </div>
-      )}
-      <div className={`h-full ${devMode && profile?.role === 'admin' ? 'pt-6' : ''}`}>
+      {devMode && profile?.role === 'admin' && <div className="dev-banner">开发模式 · 上线前在 .env 里把 VITE_DEV_MODE 改为 false</div>}
+      <div style={{ height: '100%', paddingTop: devMode && profile?.role === 'admin' ? 24 : 0 }}>
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/profile" element={<AuthGuard><ProfilePage /></AuthGuard>} />
@@ -61,16 +51,11 @@ export default function App() {
 
 function Placeholder({ name }: { name: string }) {
   return (
-    <div className="h-full flex items-center justify-center bg-gray-50">
-      <div className="text-center">
-        <p className="text-2xl font-bold text-gray-300 mb-2">{name}</p>
-        <p className="text-gray-400">开发中...</p>
-        <button
-          onClick={() => window.history.back()}
-          className="mt-4 px-4 py-2 text-sm text-blue-500 hover:text-blue-700"
-        >
-          ← 返回
-        </button>
+    <div className="page">
+      <div className="flex-center page-scroll" style={{ flexDirection: 'column', gap: 8 }}>
+        <span className="text-2xl text-bold text-gray">{name}</span>
+        <span className="text-gray">开发中...</span>
+        <button className="btn btn-ghost" onClick={() => window.history.back()}>← 返回</button>
       </div>
     </div>
   )
