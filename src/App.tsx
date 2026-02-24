@@ -9,6 +9,7 @@ import RealPersonPage from './pages/RealPersonPage'
 import ChatWindow from './pages/ChatWindow'
 import VipPage from './pages/VipPage'
 import TreeHoleComments from './pages/TreeHoleComments'
+import DevTools from './pages/DevTools'
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { user, initialized, devMode } = useAuthStore()
@@ -50,6 +51,7 @@ export default function App() {
           <Route path="/treehole/:postId" element={<AuthGuard><TreeHoleComments /></AuthGuard>} />
           <Route path="/ai" element={<AuthGuard><Placeholder name="AI角色区" /></AuthGuard>} />
           <Route path="/admin" element={<AuthGuard><Placeholder name="管理后台" /></AuthGuard>} />
+          <Route path="/dev-tools" element={<AuthGuard><DevTools /></AuthGuard>} />
         </Routes>
       </div>
     </BrowserRouter>

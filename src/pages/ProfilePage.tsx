@@ -69,8 +69,9 @@ export default function ProfilePage() {
       setMessage('保存失败：' + result.error)
     } else {
       setMessage('保存成功！')
-      setTimeout(() => setMessage(''), 2000)
+      setTimeout(() => setMessage(''), 3000)
     }
+    console.log('保存结果:', result)
   }
 
   return (

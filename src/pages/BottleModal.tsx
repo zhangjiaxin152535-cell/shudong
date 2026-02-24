@@ -113,8 +113,15 @@ export default function BottleModal({ open, onClose }: Props) {
     setTimeout(() => { setMessage(''); setView('main') }, 1200)
   }
 
+  const handleJustThrowBack = () => {
+    setView('main')
+    setReplyInput('')
+    setCaughtBottle(null)
+  }
+
   const handleReplyAndSayHi = async (targetUserId: string) => {
     if (!user) return
+    if (targetUserId === user.id) { setMessage('不能和自己打招呼'); return }
     if (replyInput.trim() && caughtBottle) {
       await supabase.from('bottle_replies').insert({
         bottle_id: caughtBottle.id, user_id: user.id,
@@ -215,7 +222,7 @@ export default function BottleModal({ open, onClose }: Props) {
                 className="w-full px-4 py-3 border rounded-xl resize-none focus:ring-2 focus:ring-blue-400 outline-none" />
 
               <div className="space-y-2">
-                <button onClick={() => { setView('main') }} className="w-full py-2.5 bg-gray-200 rounded-xl hover:bg-gray-300 text-sm">① 扔回海里（不回复）</button>
+                <button onClick={handleJustThrowBack} className="w-full py-2.5 bg-gray-200 rounded-xl hover:bg-gray-300 text-sm">① 扔回海里（不回复）</button>
                 <button onClick={handleReplyAndThrow} className="w-full py-2.5 bg-blue-400 text-white rounded-xl hover:bg-blue-500 text-sm">② 回复后扔回海里</button>
                 <button onClick={() => handleReplyAndSayHi(caughtBottle.creator_id)} className="w-full py-2.5 bg-green-500 text-white rounded-xl hover:bg-green-600 text-sm">
                   ③ 回复 + 和原作者打招呼
