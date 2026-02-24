@@ -6,7 +6,7 @@ import ChinaAreaPicker from '../components/common/ChinaAreaPicker'
 
 export default function ProfilePage() {
   const navigate = useNavigate()
-  const { profile, updateProfile } = useAuthStore()
+  const { profile, updateProfile, logout } = useAuthStore()
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const [nickname, setNickname] = useState('')
@@ -172,6 +172,21 @@ export default function ProfilePage() {
         >
           {saving ? '保存中...' : '保存'}
         </button>
+
+        <div className="border-t pt-4 mt-4">
+          <button
+            onClick={async () => {
+              await logout()
+              navigate('/')
+            }}
+            className="w-full py-3 border border-red-300 text-red-500 rounded-lg font-medium hover:bg-red-50 transition-colors"
+          >
+            退出登录
+          </button>
+          <p className="text-xs text-gray-400 text-center mt-2">
+            所有数据按账号保存在云端，换设备登录同一账号即可恢复
+          </p>
+        </div>
       </div>
     </div>
   )

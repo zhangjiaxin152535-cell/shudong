@@ -9,6 +9,7 @@ export default function HomePage() {
   const { setShowLoginModal } = useUIStore()
   const isLoggedIn = !!user
   const isAdmin = profile?.role === 'admin'
+  const devMode = useAuthStore(s => s.devMode)
 
   const handleNeedAuth = (path: string) => {
     if (!isLoggedIn) {
@@ -53,22 +54,19 @@ export default function HomePage() {
         </div>
       </header>
 
-      {/* 管理员入口 */}
-      {isAdmin && (
-        <div className="px-6 flex gap-2">
-          <button
-            onClick={() => navigate('/admin')}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors"
-          >
-            <Settings size={16} />
-            管理后台
-          </button>
-          <button
-            onClick={() => navigate('/dev-tools')}
-            className="flex items-center gap-2 px-4 py-2 text-sm text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors"
-          >
-            🛠 开发者工具
-          </button>
+      {/* 管理员 + 开发者入口 */}
+      {isLoggedIn && (isAdmin || devMode) && (
+        <div className="px-6 flex gap-2 flex-wrap">
+          {isAdmin && (
+            <button onClick={() => navigate('/admin')} className="flex items-center gap-2 px-4 py-2 text-sm text-orange-600 bg-orange-50 rounded-lg hover:bg-orange-100 transition-colors">
+              <Settings size={16} /> 管理后台
+            </button>
+          )}
+          {devMode && (
+            <button onClick={() => navigate('/dev-tools')} className="flex items-center gap-2 px-4 py-2 text-sm text-purple-600 bg-purple-50 rounded-lg hover:bg-purple-100 transition-colors">
+              🛠 开发者工具
+            </button>
+          )}
         </div>
       )}
 

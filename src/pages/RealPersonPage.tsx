@@ -111,7 +111,7 @@ export default function RealPersonPage() {
               <label className="text-xs text-gray-500">邮箱搜索（免费）</label>
               <div className="flex gap-1 mt-1">
                 <input value={emailSearch} onChange={e => setEmailSearch(e.target.value)} placeholder="输入邮箱" className="flex-1 px-2 py-1.5 text-sm border rounded-lg" />
-                <button className="px-2 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200"><Mail size={14} /></button>
+                <button className="px-2 py-1.5 bg-gray-100 rounded-lg hover:bg-gray-200"><Search size={14} /></button>
               </div>
             </div>
 
@@ -157,57 +157,52 @@ function ChatListPanel() {
   }, [user])
 
   const loadChats = async () => {
-    if (!user) return
-    const items: ChatItem[] = []
+    if (!user) { setLoading(false); return }
+    try {
+      const items: ChatItem[] = []
 
-    // 加载私聊
-    const { data: convos } = await supabase
-      .from('conversations')
-      .select('*')
-      .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
-      .order('updated_at', { ascending: false })
+      const { data: convos, error: convErr } = await supabase
+        .from('conversations')
+        .select('*')
+        .or(`user_a_id.eq.${user.id},user_b_id.eq.${user.id}`)
+        .order('updated_at', { ascending: false })
 
-    if (convos) {
-      for (const c of convos) {
-        const otherId = c.user_a_id === user.id ? c.user_b_id : c.user_a_id
-        const { data: otherProfile } = await supabase.from('profiles').select('nickname').eq('id', otherId).single()
-        const { data: lastMsg } = await supabase.from('messages').select('text_content, created_at').eq('conversation_id', c.id).order('created_at', { ascending: false }).limit(1).single()
+      if (!convErr && convos) {
+        for (const c of convos) {
+          const otherId = c.user_a_id === user.id ? c.user_b_id : c.user_a_id
+          const { data: otherProfile } = await supabase.from('profiles').select('nickname').eq('id', otherId).single()
+          const { data: lastMsg } = await supabase.from('messages').select('text_content, created_at').eq('conversation_id', c.id).order('created_at', { ascending: false }).limit(1).single()
 
-        items.push({
-          id: c.id,
-          name: otherProfile?.nickname || '未知用户',
-          isGroup: false,
-          lastMsg: lastMsg?.text_content || '',
-          time: lastMsg ? formatTime(lastMsg.created_at) : '',
-          otherUserId: otherId,
-        })
-      }
-    }
-
-    // 加载群聊
-    const { data: myGroups } = await supabase
-      .from('group_members')
-      .select('group_id')
-      .eq('user_id', user.id)
-
-    if (myGroups) {
-      for (const gm of myGroups) {
-        const { data: group } = await supabase.from('groups').select('*').eq('id', gm.group_id).single()
-        const { data: lastMsg } = await supabase.from('group_messages').select('text_content, created_at').eq('group_id', gm.group_id).order('created_at', { ascending: false }).limit(1).single()
-
-        if (group) {
           items.push({
-            id: `group-${group.id}`,
-            name: group.name,
-            isGroup: true,
+            id: c.id,
+            name: otherProfile?.nickname || '未知用户',
+            isGroup: false,
             lastMsg: lastMsg?.text_content || '',
             time: lastMsg ? formatTime(lastMsg.created_at) : '',
+            otherUserId: otherId,
           })
         }
       }
-    }
 
-    setChats(items)
+      const { data: myGroups } = await supabase
+        .from('group_members')
+        .select('group_id')
+        .eq('user_id', user.id)
+
+      if (myGroups) {
+        for (const gm of myGroups) {
+          const { data: group } = await supabase.from('groups').select('*').eq('id', gm.group_id).single()
+          const { data: lastMsg } = await supabase.from('group_messages').select('text_content, created_at').eq('group_id', gm.group_id).order('created_at', { ascending: false }).limit(1).single()
+          if (group) {
+            items.push({ id: `group-${group.id}`, name: group.name, isGroup: true, lastMsg: lastMsg?.text_content || '', time: lastMsg ? formatTime(lastMsg.created_at) : '' })
+          }
+        }
+      }
+
+      setChats(items)
+    } catch (e) {
+      console.error('加载聊天列表出错:', e)
+    }
     setLoading(false)
   }
 

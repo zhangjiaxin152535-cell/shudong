@@ -5,15 +5,15 @@ import { supabase } from '../lib/supabase'
 import { useAuthStore } from '../stores/authStore'
 
 const TEST_USERS = [
-  { email: 'xiaoming@shudong.test', password: 'shudong123', nickname: '小明', gender: 'male', age: 22, province: '广东', city: '广州', district: '天河' },
-  { email: 'xiaohong@shudong.test', password: 'shudong123', nickname: '小红', gender: 'female', age: 20, province: '上海', city: '上海', district: '浦东' },
-  { email: 'zhangsan@shudong.test', password: 'shudong123', nickname: '张三', gender: 'male', age: 25, province: '浙江', city: '杭州', district: '西湖' },
-  { email: 'lisi@shudong.test', password: 'shudong123', nickname: '李四', gender: 'female', age: 23, province: '四川', city: '成都', district: '武侯' },
+  { email: 'shudong.xiaoming@qq.com', password: 'shudong123', nickname: '小明', gender: 'male', age: 22, province: '广东', city: '广州', district: '天河' },
+  { email: 'shudong.xiaohong@qq.com', password: 'shudong123', nickname: '小红', gender: 'female', age: 20, province: '上海', city: '上海', district: '浦东' },
+  { email: 'shudong.zhangsan@qq.com', password: 'shudong123', nickname: '张三', gender: 'male', age: 25, province: '浙江', city: '杭州', district: '西湖' },
+  { email: 'shudong.lisi@qq.com', password: 'shudong123', nickname: '李四', gender: 'female', age: 23, province: '四川', city: '成都', district: '武侯' },
 ]
 
 export default function DevTools() {
   const navigate = useNavigate()
-  const { user } = useAuthStore()
+  const { user, profile } = useAuthStore()
   const [log, setLog] = useState<string[]>([])
   const [running, setRunning] = useState(false)
 
@@ -168,6 +168,28 @@ export default function DevTools() {
       </header>
 
       <div className="max-w-2xl mx-auto p-6 space-y-6">
+        {/* 设置管理员 */}
+        <div className="bg-white rounded-xl border p-5">
+          <h2 className="font-semibold mb-2">我的账号</h2>
+          <p className="text-sm text-gray-500 mb-2">ID: {user?.id}</p>
+          <p className="text-sm text-gray-500 mb-2">邮箱: {user?.email}</p>
+          <p className="text-sm text-gray-500 mb-3">角色: {profile?.role || '未知'} | VIP: {profile?.is_vip ? '是' : '否'}</p>
+          {profile?.role !== 'admin' && (
+            <button
+              onClick={async () => {
+                if (!user) return
+                const { error } = await supabase.from('profiles').update({ role: 'admin', is_vip: true, vip_expires_at: '2099-12-31T00:00:00Z' }).eq('id', user.id)
+                if (error) alert('失败: ' + error.message)
+                else { alert('已设为管理员！刷新页面生效'); window.location.reload() }
+              }}
+              className="px-4 py-2 bg-red-500 text-white rounded-lg text-sm hover:bg-red-600"
+            >
+              设置我为超级管理员 + VIP
+            </button>
+          )}
+          {profile?.role === 'admin' && <span className="text-green-500 text-sm font-medium">✅ 已是管理员</span>}
+        </div>
+
         <div className="bg-white rounded-xl border p-5">
           <h2 className="font-semibold mb-2">创建测试用户和数据</h2>
           <p className="text-sm text-gray-500 mb-4">
