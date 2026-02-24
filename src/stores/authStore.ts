@@ -4,24 +4,8 @@ import type { Profile } from '../types/database'
 import type { User } from '@supabase/supabase-js'
 
 const DEV_MODE = import.meta.env.VITE_DEV_MODE === 'true'
-
-const MOCK_PROFILE: Profile = {
-  id: 'dev-user-001',
-  nickname: '开发者',
-  avatar_url: null,
-  gender: 'male',
-  age: 25,
-  province: '北京',
-  city: '北京',
-  district: '朝阳',
-  is_vip: true,
-  vip_expires_at: '2099-12-31T00:00:00Z',
-  role: 'admin',
-  is_online: true,
-  last_seen: new Date().toISOString(),
-  created_at: new Date().toISOString(),
-  updated_at: new Date().toISOString(),
-}
+const DEV_EMAIL = 'admin@shudong.test'
+const DEV_PASSWORD = 'shudong123'
 
 interface AuthState {
   user: User | null
@@ -47,12 +31,45 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   initialize: async () => {
     if (DEV_MODE) {
-      set({
-        user: { id: 'dev-user-001', email: 'dev@test.com' } as User,
-        profile: MOCK_PROFILE,
-        initialized: true,
+      // 先尝试登录测试账号
+      let { error } = await supabase.auth.signInWithPassword({
+        email: DEV_EMAIL,
+        password: DEV_PASSWORD,
       })
-      return
+
+      // 如果登录失败（账号不存在），就自动注册
+      if (error) {
+        console.log('开发模式：测试账号不存在，正在自动注册...')
+        const { error: regError } = await supabase.auth.signUp({
+          email: DEV_EMAIL,
+          password: DEV_PASSWORD,
+        })
+        if (!regError) {
+          // 注册成功，再次登录
+          await supabase.auth.signInWithPassword({
+            email: DEV_EMAIL,
+            password: DEV_PASSWORD,
+          })
+          // 设置管理员资料
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.user) {
+            await supabase.from('profiles').update({
+              nickname: '开发者',
+              role: 'admin',
+              is_vip: true,
+              vip_expires_at: '2099-12-31T00:00:00Z',
+              gender: 'male',
+              age: 28,
+              province: '北京',
+              city: '北京',
+              district: '朝阳',
+              is_online: true,
+            }).eq('id', session.user.id)
+          }
+        } else {
+          console.error('开发模式注册也失败了:', regError.message)
+        }
+      }
     }
 
     const { data: { session } } = await supabase.auth.getSession()
@@ -73,7 +90,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   login: async (email, password) => {
-    if (DEV_MODE) return { error: null }
     set({ loading: true })
     const { error } = await supabase.auth.signInWithPassword({ email, password })
     set({ loading: false })
@@ -82,7 +98,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   register: async (email, password) => {
-    if (DEV_MODE) return { error: null }
     set({ loading: true })
     const { error } = await supabase.auth.signUp({ email, password })
     set({ loading: false })
@@ -91,12 +106,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   logout: async () => {
-    if (!DEV_MODE) await supabase.auth.signOut()
+    await supabase.auth.signOut()
     set({ user: null, profile: null })
   },
 
   fetchProfile: async () => {
-    if (DEV_MODE) { set({ profile: MOCK_PROFILE }); return }
     const user = get().user
     if (!user) return
     const { data } = await supabase
@@ -104,14 +118,22 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       .select('*')
       .eq('id', user.id)
       .single()
-    if (data) set({ profile: data as Profile })
+    if (data) {
+      if (DEV_MODE && (!data.is_vip || data.role !== 'admin')) {
+        await supabase.from('profiles').update({
+          is_vip: true, role: 'admin', vip_expires_at: '2099-12-31T00:00:00Z',
+          nickname: data.nickname || '开发者', is_online: true,
+        }).eq('id', user.id)
+        data.is_vip = true
+        data.role = 'admin'
+        data.vip_expires_at = '2099-12-31T00:00:00Z'
+        if (!data.nickname) data.nickname = '开发者'
+      }
+      set({ profile: data as Profile })
+    }
   },
 
   updateProfile: async (data) => {
-    if (DEV_MODE) {
-      set({ profile: { ...MOCK_PROFILE, ...data } })
-      return { error: null }
-    }
     const user = get().user
     if (!user) return { error: '未登录' }
     const { error } = await supabase

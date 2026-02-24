@@ -1,224 +1,236 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Image, Mic, File, Video, Send, ShieldAlert, Ban } from 'lucide-react'
-
-interface ChatMessage {
-  id: string
-  senderId: string
-  content: string
-  contentType: 'text' | 'image' | 'voice' | 'file' | 'video'
-  mediaUrl?: string
-  timestamp: string
-  isMine: boolean
-}
+import { supabase } from '../lib/supabase'
+import { useAuthStore } from '../stores/authStore'
+import type { Message } from '../types/database'
 
 export default function ChatWindow() {
   const navigate = useNavigate()
-  const { id } = useParams()
+  const { id } = useParams<{ id: string }>()
+  const { user } = useAuthStore()
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
-  const [isStranger, setIsStranger] = useState(true)
-  const [sentCount, setSentCount] = useState(1)
-  const maxStrangerMessages = 3
-  const isLocked = isStranger && sentCount >= maxStrangerMessages
+  const [chatName, setChatName] = useState('')
+  const [conversationStatus, setConversationStatus] = useState<'stranger' | 'friend'>('stranger')
+  const [loading, setLoading] = useState(true)
+  const [mySentCount, setMySentCount] = useState(0)
 
-  // TODO: 替换为真实数据
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    { id: '1', senderId: 'other', content: '（这是模拟的对话窗口）', contentType: 'text', timestamp: '11:00', isMine: false },
-    { id: '2', senderId: 'me', content: '你好！很高兴认识你', contentType: 'text', timestamp: '11:01', isMine: true },
-  ])
-
-  const chatName = '用户A'
   const isGroup = id?.startsWith('group-')
+  const realId = isGroup ? id?.replace('group-', '') : id
+  const maxStrangerMessages = 3
+  const isLocked = conversationStatus === 'stranger' && mySentCount >= maxStrangerMessages
+
+  useEffect(() => {
+    if (!user || !realId) return
+    loadChatData()
+    const cleanup = subscribeToMessages()
+    return () => { cleanup?.then(sub => sub?.()) }
+  }, [user, realId])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
-  const handleSend = () => {
-    if (!input.trim() || isLocked) return
-    const newMsg: ChatMessage = {
-      id: Date.now().toString(),
-      senderId: 'me',
-      content: input.trim(),
-      contentType: 'text',
-      timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      isMine: true,
+  const loadChatData = async () => {
+    if (!user || !realId) return
+
+    if (isGroup) {
+      const { data: group } = await supabase.from('groups').select('name').eq('id', realId).single()
+      if (group) setChatName(group.name)
+      const { data: msgs } = await supabase.from('group_messages').select('*').eq('group_id', realId).order('created_at', { ascending: true })
+      if (msgs) setMessages(msgs as Message[])
+    } else {
+      const { data: conv } = await supabase.from('conversations').select('*').eq('id', realId).single()
+      if (conv) {
+        setConversationStatus(conv.status)
+        const otherId = conv.user_a_id === user.id ? conv.user_b_id : conv.user_a_id
+        const { data: otherProfile } = await supabase.from('profiles').select('nickname').eq('id', otherId).single()
+        setChatName(otherProfile?.nickname || '未知用户')
+      }
+      const { data: msgs } = await supabase.from('messages').select('*').eq('conversation_id', realId).order('created_at', { ascending: true })
+      if (msgs) {
+        setMessages(msgs as Message[])
+        if (conv?.status === 'stranger') {
+          setMySentCount(msgs.filter(m => m.sender_id === user.id).length)
+        }
+      }
     }
-    setMessages(prev => [...prev, newMsg])
-    setInput('')
-    if (isStranger) setSentCount(prev => prev + 1)
+    setLoading(false)
+  }
+
+  const subscribeToMessages = () => {
+    if (!realId) return
+    const table = isGroup ? 'group_messages' : 'messages'
+    const column = isGroup ? 'group_id' : 'conversation_id'
+
+    const channel = supabase
+      .channel(`chat-${realId}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table,
+        filter: `${column}=eq.${realId}`,
+      }, (payload) => {
+        const newMsg = payload.new as Message
+        setMessages(prev => {
+          if (prev.some(m => m.id === newMsg.id)) return prev
+          return [...prev, newMsg]
+        })
+        if (!isGroup && newMsg.sender_id !== user?.id && conversationStatus === 'stranger') {
+          setConversationStatus('friend')
+          supabase.from('conversations').update({ status: 'friend' }).eq('id', realId)
+        }
+      })
+      .subscribe()
+
+    return Promise.resolve(() => { supabase.removeChannel(channel) })
+  }
+
+  const handleSend = async () => {
+    if (!input.trim() || !user || !realId || isLocked) return
+
+    const msgData = {
+      sender_id: user.id,
+      content_type: 'text' as const,
+      text_content: input.trim(),
+      ...(isGroup
+        ? { group_id: realId }
+        : { conversation_id: realId }
+      ),
+    }
+
+    const table = isGroup ? 'group_messages' : 'messages'
+    const { data, error } = await supabase.from(table).insert(msgData).select().single()
+
+    if (!error && data) {
+      setMessages(prev => [...prev, data as Message])
+      setInput('')
+      if (!isGroup && conversationStatus === 'stranger') {
+        setMySentCount(prev => prev + 1)
+      }
+      await supabase.from(isGroup ? 'groups' : 'conversations')
+        .update({ updated_at: new Date().toISOString() })
+        .eq('id', realId)
+    }
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault()
-      handleSend()
-    }
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend() }
   }
 
   const handleFileSelect = (accept: string) => {
-    if (fileInputRef.current) {
-      fileInputRef.current.accept = accept
-      fileInputRef.current.click()
-    }
+    if (fileInputRef.current) { fileInputRef.current.accept = accept; fileInputRef.current.click() }
   }
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
-    // TODO: 上传到 R2，拿到 URL 后发送媒体消息
-    const newMsg: ChatMessage = {
-      id: Date.now().toString(),
-      senderId: 'me',
-      content: `[${file.type.startsWith('image') ? '图片' : file.type.startsWith('video') ? '视频' : file.type.startsWith('audio') ? '语音' : '文件'}] ${file.name}`,
-      contentType: file.type.startsWith('image') ? 'image' : file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'voice' : 'file',
-      timestamp: new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }),
-      isMine: true,
-    }
-    setMessages(prev => [...prev, newMsg])
-    if (isStranger) setSentCount(prev => prev + 1)
+    if (!file || !user || !realId) return
+    // TODO: 上传到 R2 后发送媒体消息，暂时发送文件名提示
+    const type = file.type.startsWith('image') ? 'image' : file.type.startsWith('video') ? 'video' : file.type.startsWith('audio') ? 'voice' : 'file'
+    const table = isGroup ? 'group_messages' : 'messages'
+    await supabase.from(table).insert({
+      sender_id: user.id,
+      content_type: type,
+      text_content: `[${type === 'image' ? '图片' : type === 'video' ? '视频' : type === 'voice' ? '语音' : '文件'}] ${file.name}`,
+      ...(isGroup ? { group_id: realId } : { conversation_id: realId }),
+    })
     e.target.value = ''
   }
 
+  if (loading) return <div className="h-screen flex items-center justify-center text-gray-400">加载中...</div>
+
   return (
     <div className="h-screen flex flex-col bg-gray-100">
-      {/* 顶部栏 */}
       <header className="bg-white border-b px-4 py-3 flex items-center justify-between shrink-0">
         <div className="flex items-center gap-3">
-          <button onClick={() => navigate(-1)} className="p-1 hover:bg-gray-100 rounded">
+          <button onClick={() => navigate('/real-person')} className="p-1 hover:bg-gray-100 rounded">
             <ArrowLeft size={20} />
           </button>
           <div>
             <h1 className="text-base font-semibold">{chatName}</h1>
-            {isStranger && (
+            {!isGroup && conversationStatus === 'stranger' && (
               <span className="text-xs text-orange-500">陌生人 · 回复后成为好友</span>
             )}
           </div>
         </div>
         {!isGroup && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => {/* TODO: 拉黑 */}}
-              className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
-              title="拉黑"
-            >
-              <Ban size={18} />
-            </button>
-            <button
-              onClick={() => {/* TODO: 举报 */}}
-              className="p-2 text-gray-400 hover:text-orange-500 rounded-lg hover:bg-orange-50 transition-colors"
-              title="举报"
-            >
-              <ShieldAlert size={18} />
-            </button>
+            <button className="p-2 text-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors" title="拉黑"><Ban size={18} /></button>
+            <button className="p-2 text-gray-400 hover:text-orange-500 rounded-lg hover:bg-orange-50 transition-colors" title="举报"><ShieldAlert size={18} /></button>
           </div>
         )}
       </header>
 
-      {/* 消息区 */}
       <div className="flex-1 overflow-y-auto px-4 py-3">
         <div className="max-w-2xl mx-auto space-y-3">
-          {messages.map(msg => (
-            <div key={msg.id} className={`flex ${msg.isMine ? 'justify-end' : 'justify-start'}`}>
-              <div className={`flex items-end gap-2 max-w-[70%] ${msg.isMine ? 'flex-row-reverse' : ''}`}>
-                <div className="w-8 h-8 bg-gray-300 rounded-full shrink-0 flex items-center justify-center text-xs">
-                  {msg.isMine ? '我' : '👤'}
-                </div>
-                <div>
-                  <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
-                    msg.isMine
-                      ? 'bg-blue-500 text-white rounded-br-md'
-                      : 'bg-white text-gray-800 rounded-bl-md shadow-sm'
-                  }`}>
-                    {msg.content}
+          {messages.length === 0 && (
+            <p className="text-center text-gray-400 py-8">开始聊天吧</p>
+          )}
+          {messages.map(msg => {
+            const isMine = msg.sender_id === user?.id
+            return (
+              <div key={msg.id} className={`flex ${isMine ? 'justify-end' : 'justify-start'}`}>
+                <div className={`flex items-end gap-2 max-w-[70%] ${isMine ? 'flex-row-reverse' : ''}`}>
+                  <div className="w-8 h-8 bg-gray-300 rounded-full shrink-0 flex items-center justify-center text-xs">
+                    {isMine ? '我' : '👤'}
                   </div>
-                  <p className={`text-xs text-gray-400 mt-1 ${msg.isMine ? 'text-right' : ''}`}>
-                    {msg.timestamp}
-                  </p>
+                  <div>
+                    <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed ${
+                      isMine ? 'bg-blue-500 text-white rounded-br-md' : 'bg-white text-gray-800 rounded-bl-md shadow-sm'
+                    }`}>
+                      {msg.text_content}
+                    </div>
+                    <p className={`text-xs text-gray-400 mt-1 ${isMine ? 'text-right' : ''}`}>
+                      {formatTime(msg.created_at)}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
           <div ref={messagesEndRef} />
         </div>
       </div>
 
-      {/* 3条消息限制提示 */}
-      {isStranger && (
+      {!isGroup && conversationStatus === 'stranger' && (
         <div className="text-center py-1.5 bg-gray-200/50">
           <span className="text-xs text-gray-500">
-            {isLocked
-              ? '对方回复前最多发送3条消息'
-              : `已发送 ${sentCount}/${maxStrangerMessages} 条`
-            }
+            {isLocked ? '对方回复前最多发送3条消息' : `已发送 ${mySentCount}/${maxStrangerMessages} 条`}
           </span>
         </div>
       )}
 
-      {/* 输入区 */}
       <div className="bg-white border-t px-4 py-3 shrink-0">
         <div className="max-w-2xl mx-auto">
-          {/* 媒体按钮 */}
           <div className="flex items-center gap-1 mb-2">
-            <button
-              onClick={() => handleFileSelect('image/*')}
-              disabled={isLocked}
-              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-30"
-              title="图片"
-            >
-              <Image size={18} />
-            </button>
-            <button
-              onClick={() => {/* TODO: 语音录制 */}}
-              disabled={isLocked}
-              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-30"
-              title="语音"
-            >
-              <Mic size={18} />
-            </button>
-            <button
-              onClick={() => handleFileSelect('*/*')}
-              disabled={isLocked}
-              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-30"
-              title="文件"
-            >
-              <File size={18} />
-            </button>
-            <button
-              onClick={() => handleFileSelect('video/*')}
-              disabled={isLocked}
-              className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-30"
-              title="视频"
-            >
-              <Video size={18} />
-            </button>
+            <button onClick={() => handleFileSelect('image/*')} disabled={isLocked} className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-30" title="图片"><Image size={18} /></button>
+            <button disabled={isLocked} className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-30" title="语音"><Mic size={18} /></button>
+            <button onClick={() => handleFileSelect('*/*')} disabled={isLocked} className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-30" title="文件"><File size={18} /></button>
+            <button onClick={() => handleFileSelect('video/*')} disabled={isLocked} className="p-2 text-gray-500 hover:text-blue-500 hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-30" title="视频"><Video size={18} /></button>
           </div>
-
-          {/* 输入框 + 发送 */}
           <div className="flex gap-2">
-            <input
-              value={input}
-              onChange={e => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              disabled={isLocked}
-              placeholder={isLocked ? '等待对方回复...' : '输入消息...'}
-              className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100 disabled:text-gray-400"
-            />
-            <button
-              onClick={handleSend}
-              disabled={isLocked || !input.trim()}
-              className="px-4 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-30 transition-colors"
-            >
+            <input value={input} onChange={e => setInput(e.target.value)} onKeyDown={handleKeyDown} disabled={isLocked}
+              placeholder={isLocked ? '等待对方回复...' : '输入消息...'} className="flex-1 px-4 py-2.5 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none disabled:bg-gray-100 disabled:text-gray-400" />
+            <button onClick={handleSend} disabled={isLocked || !input.trim()} className="px-4 py-2.5 bg-blue-500 text-white rounded-xl hover:bg-blue-600 disabled:opacity-30 transition-colors">
               <Send size={18} />
             </button>
           </div>
         </div>
-
         <input ref={fileInputRef} type="file" onChange={handleFileChange} className="hidden" />
       </div>
     </div>
   )
+}
+
+function formatTime(iso: string): string {
+  const d = new Date(iso), now = new Date(), diff = now.getTime() - d.getTime(), min = Math.floor(diff / 60000)
+  if (min < 1) return '刚刚'
+  if (min < 60) return `${min}分钟前`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `${h}小时前`
+  return d.toLocaleDateString('zh-CN')
 }
